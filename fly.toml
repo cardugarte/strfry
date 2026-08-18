@@ -1,6 +1,28 @@
 app = "travelsats-relay-staging"
 primary_region = "iad"
 
+# Rendered into strfry.conf by docker-entrypoint.sh at boot. None of these are
+# secrets - they are the relay's public identity plus a list of public keys -
+# so they belong in the versioned config rather than in `fly secrets`.
+#
+# STRFRY_ALLOWED_PUBKEYS is what keeps this relay from accepting writes from
+# the entire network. The committed strfry.conf ships `plugin = ""`, which is
+# an open relay; the whitelist plugin only engages when both variables below
+# are set. An empty allow-list fails closed and rejects everything, so a typo
+# here degrades to "nobody can write", never to "anybody can write".
+#
+# serviceUrl must match the hostname clients actually connect to: NIP-42
+# validates the AUTH challenge against it, so pointing it at the fly.dev name
+# would break authentication on relay.travelsats.ar.
+[env]
+  STRFRY_SERVICE_URL = "wss://relay.travelsats.ar"
+  STRFRY_RELAY_NAME = "Travelsats Relay"
+  STRFRY_RELAY_DESCRIPTION = "The home of Bitcoin travel in Argentina. Xplorers meet Baqueanos. Instant payments, no borders, no banks."
+  STRFRY_RELAY_PUBKEY = "9e868499203cb9659fca70bff7f2f47c71e970fbabde1c8db3704ad2b55f662d"
+  STRFRY_RELAY_CONTACT = "hello@travelsats.ar"
+  STRFRY_WRITE_POLICY_PLUGIN = "/app/policy/whitelist.sh"
+  STRFRY_ALLOWED_PUBKEYS = "9e868499203cb9659fca70bff7f2f47c71e970fbabde1c8db3704ad2b55f662d"
+
 [http_service]
   internal_port = 7777
   force_https = true
