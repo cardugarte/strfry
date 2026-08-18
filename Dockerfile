@@ -46,6 +46,7 @@ RUN \
     zstd \
     libressl \
     jq \
+    curl \
   && rm -rf /var/cache/apk/*
 
 # Create a non-root user for security
@@ -62,6 +63,18 @@ COPY --chown=strfry:strfry docker-entrypoint.sh /app/docker-entrypoint.sh
 COPY --chown=strfry:strfry policy/ /app/policy/
 
 EXPOSE 7777
+
+# strfry answers a plain GET on / with its landing page, which is enough of a
+# liveness signal: the websocket server is the same process serving it.
+#
+# This exists because Coolify's generated HTTP health check shells out to curl
+# inside the container, and the previous image had no HTTP client at all - the
+# check could never pass, the container stayed `unhealthy`, and Traefik pulled
+# it out of routing and served 503 while the relay itself was perfectly fine.
+# Declaring the check here makes Coolify reuse it instead of generating its own,
+# and `curl` is now installed above so either path works.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD curl -fsS -o /dev/null http://127.0.0.1:7777/ || exit 1
 
 # The entrypoint renders strfry.conf from the environment before exec'ing
 # strfry. With no variables set it is a no-op, so this stays byte-compatible
