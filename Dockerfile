@@ -31,7 +31,7 @@ RUN git submodule update --init
 RUN make setup-golpe
 
 RUN --mount=type=cache,target=/build/.cache \
-    make -j4
+    make -j2
 
 FROM alpine:3.18.3
 

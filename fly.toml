@@ -1,0 +1,19 @@
+app = "travelsats-relay-staging"
+primary_region = "iad"
+
+[http_service]
+  internal_port = 7777
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = false
+  processes = ["app"]
+
+[vm]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "256mb"
+
+[[mounts]]
+  source = "strfry_data"
+  destination = "/app/strfry-db"
+  snapshot_retention = 7
