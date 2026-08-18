@@ -49,4 +49,27 @@ set_str pubkey      "${STRFRY_RELAY_PUBKEY:-}"
 set_str contact     "${STRFRY_RELAY_CONTACT:-}"
 set_str plugin      "${STRFRY_WRITE_POLICY_PLUGIN:-}"
 
+# Refuse to boot an accidental open relay.
+#
+# strfry.conf points writePolicy.plugin at the whitelist script by default, so
+# the only ways to end up without a policy are a genuine decision to run an
+# open relay or a broken image. Those two look identical at runtime - the relay
+# comes up fine and quietly accepts the whole network - which is exactly what
+# happened once already. Fail loudly here instead.
+#
+# Set STRFRY_ALLOW_OPEN_RELAY=1 to run without a write policy on purpose.
+plugin_path=$(sed -n 's|^[[:space:]]*plugin[[:space:]]*=[[:space:]]*"\(.*\)".*|\1|p' "$CONF")
+
+if [ "${STRFRY_ALLOW_OPEN_RELAY:-}" != "1" ]; then
+    if [ -z "$plugin_path" ]; then
+        echo "entrypoint: writePolicy.plugin is empty - this would accept writes from anyone." >&2
+        echo "entrypoint: set STRFRY_WRITE_POLICY_PLUGIN, or STRFRY_ALLOW_OPEN_RELAY=1 to allow it." >&2
+        exit 1
+    fi
+    if [ ! -x "$plugin_path" ]; then
+        echo "entrypoint: write policy '$plugin_path' is missing or not executable." >&2
+        exit 1
+    fi
+fi
+
 exec /app/strfry --config="$CONF" "$@"
