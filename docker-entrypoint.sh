@@ -16,16 +16,28 @@ CONF=${STRFRY_CONF_OUT:-/tmp/strfry.conf}
 
 cp "$SRC" "$CONF"
 
-# Replace `key = "value"` while preserving the original indentation. Only the
-# first match is touched, which is correct here: each of these keys appears
-# once in strfry.conf.
+# Replace `key = "value"` while preserving the original indentation.
+#
+# Every key handled here appears exactly once in strfry.conf, so a plain
+# substitution is enough - no address range is needed. That matters: this runs
+# under busybox sed in Alpine, which does not support GNU's `0,/re/` range, and
+# a range-based version silently substituted nothing here while working fine
+# against GNU sed on a developer machine.
 set_str() {
     key=$1
     val=$2
     [ -z "$val" ] && return 0
-    # Escape backslashes and the separator so URLs and descriptions are safe.
-    esc=$(printf '%s' "$val" | sed -e 's/[\\|]/\\&/g')
-    sed -i "0,/^\([[:space:]]*\)$key[[:space:]]*=.*/s||\1$key = \"$esc\"|" "$CONF"
+    # Escape backslashes, the separator, and & (which means "the whole match"
+    # on the replacement side).
+    esc=$(printf '%s' "$val" | sed -e 's/[\\|&]/\\&/g')
+    sed -i "s|^\([[:space:]]*\)$key[[:space:]]*=.*|\1$key = \"$esc\"|" "$CONF"
+
+    # Fail loudly rather than booting with a config that silently ignored the
+    # environment.
+    if ! grep -q "^[[:space:]]*$key[[:space:]]*= \"" "$CONF"; then
+        echo "entrypoint: failed to set '$key' in $CONF" >&2
+        exit 1
+    fi
 }
 
 set_str db          "${STRFRY_DB:-}"
