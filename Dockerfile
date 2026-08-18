@@ -45,6 +45,7 @@ RUN \
     libb2 \
     zstd \
     libressl \
+    jq \
   && rm -rf /var/cache/apk/*
 
 # Create a non-root user for security
@@ -57,8 +58,13 @@ USER strfry
 COPY --from=build --chown=strfry:strfry /build/strfry /app/strfry
 COPY --from=build --chown=strfry:strfry /build/strfry.conf /app/strfry.conf
 COPY --from=build --chown=strfry:strfry /build/strfry-db /app/strfry-db
+COPY --chown=strfry:strfry docker-entrypoint.sh /app/docker-entrypoint.sh
+COPY --chown=strfry:strfry policy/ /app/policy/
 
 EXPOSE 7777
 
-ENTRYPOINT ["/app/strfry"]
+# The entrypoint renders strfry.conf from the environment before exec'ing
+# strfry. With no variables set it is a no-op, so this stays byte-compatible
+# with the previous ENTRYPOINT ["/app/strfry"].
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["relay"]
