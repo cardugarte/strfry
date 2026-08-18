@@ -123,6 +123,16 @@ STRFRY_ALLOWED_PUBKEYS      9e868499203cb9659fca70bff7f2f47c71e970fbabde1c8db370
 corrupted transcription of the same key that appears nowhere else in the
 project and that the retiring relay has been advertising as its owner.
 
+**Leave Coolify's health check disabled.** Enabling it fails the deployment on
+this app, and it has been ruled out carefully: scheme, host, port, path, method
+and return code are all correct, `curl` is in the image, and the exact command
+succeeds inside the container as both root and the `strfry` user. Coolify's API
+returns no deployment logs, so the cause is not observable from outside.
+
+The image carries its own `HEALTHCHECK` instead. Docker runs it and Coolify
+surfaces the result — the app reports `running:healthy` with Coolify's own
+check switched off, where an image without one reports `running:unknown`.
+
 A **persistent volume mounted at `/app/strfry-db`** is mandatory. LMDB lives
 there; without it the event history is destroyed on every container recreate.
 

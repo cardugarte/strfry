@@ -67,12 +67,16 @@ EXPOSE 7777
 # strfry answers a plain GET on / with its landing page, which is enough of a
 # liveness signal: the websocket server is the same process serving it.
 #
-# This exists because Coolify's generated HTTP health check shells out to curl
-# inside the container, and the previous image had no HTTP client at all - the
-# check could never pass, the container stayed `unhealthy`, and Traefik pulled
-# it out of routing and served 503 while the relay itself was perfectly fine.
-# Declaring the check here makes Coolify reuse it instead of generating its own,
-# and `curl` is now installed above so either path works.
+# The check has to live in the image. Coolify's own HTTP health check fails the
+# deployment on this app no matter how it is configured - correct scheme, host,
+# port, path and return code, with curl present and verified working inside the
+# container as both root and the strfry user. Its API exposes no deployment
+# logs, so the reason is not visible from outside; leave that toggle off.
+#
+# Docker runs this one and Coolify surfaces the result, which is what moves the
+# app from `running:unknown` to `running:healthy`. That matters beyond cosmetics:
+# a container reporting unhealthy gets pulled from Traefik's routing and serves
+# 503 while the relay itself is fine, which is how this app once went down.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD curl -fsS -o /dev/null http://127.0.0.1:7777/ || exit 1
 
