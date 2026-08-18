@@ -92,6 +92,18 @@ Serves the production hostname since 2026-08-18. Its configuration lives in
 the relay's advertised identity plus a list of public keys — so it belongs in
 version control where a review can catch it being wrong.
 
+> **Known drift — the version string under-reports.** `fly deploy` builds from
+> the working tree, and the version strfry advertises comes from `git describe`
+> at build time. The running deployment was built between the `v1.1.1-ts.2` and
+> `v1.1.1-ts.3` tags, so it reports `v1.1.1-ts.2` while actually carrying the
+> ts.3 changes — the fail-closed write policy and the entrypoint boot guard.
+>
+> The relay is not out of date; its label is. Treat NIP-11 `version` on Fly as
+> a lower bound, not as the truth, and confirm against `fly releases` or the
+> presence of the behaviour itself. Redeploying from a checkout of the tag
+> clears it. Coolify does not have this problem: it pulls a tagged image from
+> GHCR, so what it reports is what it runs.
+
 `README.fly.md` remains the authority for the machine, volume and rollout
 shape of that environment.
 
