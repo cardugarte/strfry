@@ -56,6 +56,37 @@ waiting for the plugin's answer before sending the next event, so spawning a
 process per event would become the relay's write ceiling. `jq` is installed in
 the runtime image for this.
 
+### Kind 1059 gift wraps are exempt from the author whitelist
+
+NIP-59 signs every gift wrap with a fresh one-time key, so an author whitelist
+can never admit one. `policy/whitelist.sh` therefore accepts kind 1059 from
+**any** author as long as it has **exactly one** `p` tag naming a member
+(a **whitelisted** pubkey, 64 hex characters, case-insensitive): the relay is an inbox for members only,
+and external NIP-17 clients may still write to a member. Wraps addressed to
+non-members, with several `p` tags, or with a missing or malformed `p` value,
+are rejected; every
+other kind still needs a whitelisted author. Reads of kinds 4 and 1059 stay
+NIP-42 gated (`restrictedReadKinds`, `restrictReadToInvolvedPubkey` in
+`strfry.conf`), so only the recipient can fetch a wrap. Residual risk: anyone
+can still write wraps addressed to a member, bounded only by
+`maxEventSize = 65536`; this fork has no per-IP limits. Test without strfry:
+`bash policy/whitelist.test.sh`.
+
+Owner verification (placeholders in angle brackets):
+
+```
+RELAY=wss://relay.travelsats.ar   # or wss://relay-dev.travelsats.ar
+RECIP=<recipient_pubkey_hex>
+nak event -k 1059 -c "test-wrap" -p "$RECIP" --sec "$(nak key generate)" "$RELAY"   # expect OK
+nak event -k 1 -c "should-fail" --sec "$(nak key generate)" "$RELAY"                 # expect blocked: not on write whitelist
+nak req -k 1059 -p "$RECIP" "$RELAY"                                                 # expect auth-required (use websocat if nak hangs)
+```
+
+Deploy: on Fly run `fly config validate --config ./fly.toml --strict`, then
+`fly deploy --config fly.toml` from a checkout of the new tag. On Coolify push
+the tag (next is `v1.1.1-ts.4`), wait for the GHCR build, bump the image tag,
+and redeploy.
+
 ### The policy is on by default, and the entrypoint enforces it
 
 `strfry.conf` ships `writePolicy.plugin = "/app/policy/whitelist.sh"`, not
